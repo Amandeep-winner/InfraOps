@@ -1,0 +1,57 @@
+id: SOP-002
+title: High Memory Utilisation
+severity_default: P2
+trigger:
+  alert_rule: high_memory
+owner: L1
+estimated_minutes: 5
+description: >
+  Procedure for identifying and mitigating acute resident memory exhaustion
+  and runaway processes consuming available system RAM.
+steps:
+  - id: s1
+    phase: investigate
+    name: Generate memory consumption report
+    action: memory_report
+    params:
+      detailed: true
+  - id: s2
+    phase: investigate
+    name: List top memory consumers by RSS
+    action: top_processes
+    params:
+      sort: mem
+      limit: 5
+  - id: s3
+    phase: identify
+    name: Identify rogue memory hog process
+    action: identify_offender
+    params:
+      metric: mem
+      min_percent: 10
+      require_sandbox_marker: true
+    store_as: offender
+  - id: s4
+    phase: remediate
+    name: Terminate memory hog process
+    action: kill_process
+    params:
+      pid: "{offender.pid}"
+      grace_seconds: 2
+    risk: medium
+    requires_approval_in_manual: true
+  - id: s5
+    phase: verify
+    name: Verify memory utilization drops below alarm threshold
+    action: verify_metric
+    params:
+      metric: mem.percent
+      op: "<"
+      threshold: 85
+      within_seconds: 30
+      sustain_seconds: 2
+rollback_note: "Process can be relaunched by service manager; host memory is instantly reclaimed."
+escalation:
+  if_failed: "Escalate to L2 Infrastructure Engineering with memory dump and process tree."
+references:
+  - "docs/RUNBOOK.md#sop-002"

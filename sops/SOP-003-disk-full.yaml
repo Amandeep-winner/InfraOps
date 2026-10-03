@@ -1,0 +1,57 @@
+id: SOP-003
+title: Disk Space & Virtual Volume Exhaustion
+severity_default: P2
+trigger:
+  alert_rule: disk_full_vol
+owner: L1
+estimated_minutes: 5
+description: >
+  Procedure for handling critical storage consumption, scanning for bloated
+  log files inside the monitored volume, and safely purging rotated archives.
+steps:
+  - id: s1
+    phase: investigate
+    name: Generate filesystem utilization report
+    action: disk_report
+    params:
+      path: ./sandbox/data
+  - id: s2
+    phase: investigate
+    name: Scan for large junk or temporary log files
+    action: find_large_files
+    params:
+      path: ./sandbox/data
+      limit: 10
+  - id: s3
+    phase: identify
+    name: Identify disk space hogs exceeding threshold
+    action: find_large_files
+    params:
+      path: ./sandbox/data
+      pattern: "*.log"
+      min_size_mb: 1
+    store_as: junk_files
+  - id: s4
+    phase: remediate
+    name: Safely delete old bloated log files inside sandbox
+    action: clean_path
+    params:
+      path: ./sandbox/data
+      pattern: "*.log"
+      max_age_minutes: 0
+    risk: low
+    requires_approval_in_manual: true
+  - id: s5
+    phase: verify
+    name: Verify disk and volume utilization has returned below 70%
+    action: verify_metric
+    params:
+      metric: disk.vol.percent
+      op: "<"
+      threshold: 70
+      within_seconds: 30
+rollback_note: "Deleted logs were temporary runtime fill data created by simulation or rotated archives."
+escalation:
+  if_failed: "Escalate to L2 Storage/Platform team if root partition or volume cannot be cleared."
+references:
+  - "docs/RUNBOOK.md#sop-003"

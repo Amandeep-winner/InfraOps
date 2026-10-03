@@ -1,0 +1,54 @@
+id: SOP-005
+title: DNS Resolution Failure & Resolver Recovery
+severity_default: P2
+trigger:
+  alert_rule: dns_failure
+owner: L1
+estimated_minutes: 5
+description: >
+  Procedure for diagnosing resolver failures, checking query answers across multiple domains,
+  and restoring DNS routing by clearing faulty resolver overrides or switching to secondary resolvers.
+steps:
+  - id: s1
+    phase: investigate
+    name: Run DNS diagnostic queries against default and secondary resolvers
+    action: dns_diagnose
+    params:
+      names: ["localhost", "example.com"]
+  - id: s2
+    phase: investigate
+    name: Check application logs for DNS lookup timeouts
+    action: check_logs
+    params:
+      file: ./sandbox/logs/demo-service.log
+      lines: 20
+  - id: s3
+    phase: identify
+    name: Identify resolver outage and fault state
+    action: dns_diagnose
+    params:
+      names: ["localhost"]
+    store_as: dns_state
+  - id: s4
+    phase: remediate
+    name: Clear faulty resolver configuration and restore system resolver
+    action: dns_switch_resolver
+    params:
+      remove_flag: ./sandbox/faults/dns_fail
+      fallback_resolver: system
+    risk: low
+    requires_approval_in_manual: true
+  - id: s5
+    phase: verify
+    name: Verify DNS query resolution succeeds
+    action: verify_metric
+    params:
+      metric: dns.up
+      op: "=="
+      threshold: 1.0
+      within_seconds: 30
+rollback_note: "Resolver configuration switches back to standard system nameservers without side-effects."
+escalation:
+  if_failed: "Escalate to Core Network Infrastructure team with resolver probe latency report."
+references:
+  - "docs/RUNBOOK.md#sop-005"

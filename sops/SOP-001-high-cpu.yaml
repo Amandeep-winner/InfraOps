@@ -1,0 +1,65 @@
+id: SOP-001
+title: High CPU Utilisation
+severity_default: P2
+trigger:
+  alert_rule: high_cpu
+owner: L1
+estimated_minutes: 5
+description: >
+  Standard procedure for investigating sustained elevated CPU utilization, identifying
+  the rogue process, and performing sandboxed remediation via priority lowering and termination.
+steps:
+  - id: s1
+    phase: investigate
+    name: Capture system snapshot
+    action: collect_snapshot
+    params:
+      include: [processes, load, uptime]
+  - id: s2
+    phase: investigate
+    name: List top CPU consumers
+    action: top_processes
+    params:
+      sort: cpu
+      limit: 5
+  - id: s3
+    phase: identify
+    name: Identify offending CPU process
+    action: identify_offender
+    params:
+      metric: cpu
+      min_percent: 40
+      require_sandbox_marker: true
+    store_as: offender
+  - id: s4
+    phase: remediate
+    name: Lower priority of offending process (renice)
+    action: renice_process
+    params:
+      pid: "{offender.pid}"
+      niceness: 10
+    risk: low
+  - id: s5
+    phase: remediate
+    name: Terminate offending process (SIGTERM then SIGKILL)
+    action: kill_process
+    params:
+      pid: "{offender.pid}"
+      grace_seconds: 2
+    risk: medium
+    requires_approval_in_manual: true
+  - id: s6
+    phase: verify
+    name: Confirm CPU utilization recovered below threshold
+    action: verify_metric
+    params:
+      metric: cpu.percent
+      op: "<"
+      threshold: 70
+      within_seconds: 30
+      sustain_seconds: 2
+rollback_note: "Terminated simulation processes can be restarted safely without state mutation."
+escalation:
+  if_failed: "Escalate to L2 Linux Systems Engineering with system snapshot and top process list."
+references:
+  - "docs/RUNBOOK.md#sop-001"

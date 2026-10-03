@@ -1,0 +1,58 @@
+id: SOP-004
+title: Managed Service Outage & Crash Recovery
+severity_default: P1
+trigger:
+  alert_rule: service_down
+owner: L1
+estimated_minutes: 5
+description: >
+  Procedure for diagnosing an unexpected managed service termination, inspecting recent
+  application crash logs, and performing safe automated daemon restart and endpoint health check.
+steps:
+  - id: s1
+    phase: investigate
+    name: Check service process state
+    action: service_status
+    params:
+      service: demo-service
+  - id: s2
+    phase: investigate
+    name: Inspect application log tail for fatal exceptions
+    action: check_logs
+    params:
+      file: ./sandbox/logs/demo-service.log
+      lines: 30
+  - id: s3
+    phase: identify
+    name: Determine service failure cause and pidfile state
+    action: service_status
+    params:
+      service: demo-service
+    store_as: svc_info
+  - id: s4
+    phase: remediate
+    name: Restart managed demo service
+    action: service_restart
+    params:
+      service: demo-service
+    risk: low
+    requires_approval_in_manual: true
+  - id: s5
+    phase: verify
+    name: Confirm service process is alive and active
+    action: verify_service
+    params:
+      service: demo-service
+  - id: s6
+    phase: verify
+    name: Verify HTTP health endpoint returns 200 OK
+    action: verify_http
+    params:
+      url: "http://127.0.0.1:8081/health"
+      expect_status: 200
+      within_seconds: 30
+rollback_note: "Service state is re-initialized upon fresh daemon launch."
+escalation:
+  if_failed: "Escalate to Application Engineering team with recent crash stacktrace and log dump."
+references:
+  - "docs/RUNBOOK.md#sop-004"

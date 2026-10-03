@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from infraops.server.alerting.engine import AlertEngine
-from infraops.server.api import alerts, health, hosts, incidents, ingest, metrics
+from infraops.server.api import alerts, health, hosts, incidents, ingest, metrics, sops
 from infraops.server.db import get_engine, init_db
 
 alert_engine = AlertEngine()
@@ -67,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(metrics.router, prefix="/api/v1")
     app.include_router(alerts.router, prefix="/api/v1")
     app.include_router(incidents.router, prefix="/api/v1")
+    app.include_router(sops.router, prefix="/api/v1")
 
     return app
 

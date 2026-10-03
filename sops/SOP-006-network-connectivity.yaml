@@ -1,0 +1,54 @@
+id: SOP-006
+title: Network Connectivity & Upstream Dependency Outage
+severity_default: P2
+trigger:
+  alert_rule: tcp_unreachable
+owner: L1
+estimated_minutes: 5
+description: >
+  Procedure for isolating network reachability issues, probing target host sockets,
+  testing latency, and recovering upstream socket listeners.
+steps:
+  - id: s1
+    phase: investigate
+    name: Probe network gateway connectivity via ICMP
+    action: ping_check
+    params:
+      target: 127.0.0.1
+  - id: s2
+    phase: investigate
+    name: Test upstream dependency TCP port reachability
+    action: tcp_check
+    params:
+      host: 127.0.0.1
+      port: 8082
+  - id: s3
+    phase: identify
+    name: Identify specific connection failure mode (refused vs timeout)
+    action: tcp_check
+    params:
+      host: 127.0.0.1
+      port: 8082
+    store_as: tcp_result
+  - id: s4
+    phase: remediate
+    name: Restart upstream dependency service listener
+    action: restart_dependency
+    params:
+      service: demo-upstream
+    risk: low
+    requires_approval_in_manual: true
+  - id: s5
+    phase: verify
+    name: Confirm upstream TCP connection is restored
+    action: verify_metric
+    params:
+      metric: conn.tcp_up
+      op: "=="
+      threshold: 1.0
+      within_seconds: 30
+rollback_note: "Upstream dependency is idempotent; restart re-establishes listening TCP socket."
+escalation:
+  if_failed: "Escalate to Network NOC and Dependency Service owners with TCP probe telemetry."
+references:
+  - "docs/RUNBOOK.md#sop-006"
