@@ -1,19 +1,45 @@
 """FastAPI application factory and server entry point."""
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
-from infraops.server.api import health, hosts, ingest, metrics
-from infraops.server.db import init_db
+from infraops.server.alerting.engine import AlertEngine
+from infraops.server.api import alerts, health, hosts, ingest, metrics
+from infraops.server.db import get_engine, init_db
+
+alert_engine = AlertEngine()
+ingest.set_alert_evaluator(lambda batch, db: alert_engine.evaluate_batch(batch, db))
+
+
+async def heartbeat_worker():
+    """Background task running stale host checks periodically."""
+    engine = get_engine()
+    while True:
+        try:
+            with Session(engine) as db:
+                alert_engine.check_stale_hosts(db)
+        except Exception:
+            pass
+        await asyncio.sleep(5)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan context for database init and background tasks."""
     init_db()
-    yield
+    task = asyncio.create_task(heartbeat_worker())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 def create_app() -> FastAPI:
@@ -39,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(hosts.router, prefix="/api/v1")
     app.include_router(ingest.router, prefix="/api/v1")
     app.include_router(metrics.router, prefix="/api/v1")
+    app.include_router(alerts.router, prefix="/api/v1")
 
     return app
 
