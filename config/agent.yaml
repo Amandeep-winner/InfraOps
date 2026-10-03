@@ -1,0 +1,33 @@
+interval_seconds: 5
+top_n_processes: 5
+disk:
+  paths: ["/"]
+  virtual_volumes:
+    - name: sandbox-data
+      path: ./sandbox/data
+      capacity_mb: 100
+network:
+  ping_targets: ["127.0.0.1"]
+  tcp_targets:
+    - {name: demo-upstream, host: 127.0.0.1, port: 8082}
+  ports_expected_listening: [8000, 8081]
+dns:
+  names: ["localhost", "example.com"]
+  resolvers: ["system"]
+  fault_flag: ./sandbox/faults/dns_fail
+http:
+  checks:
+    - {name: demo-service, url: "http://127.0.0.1:8081/health", expect_status: 200, timeout: 2}
+services:
+  - {name: demo-service, manager: pidfile, pidfile: ./sandbox/run/demo-service.pid, start_cmd: "python -m infraops.demo.demo_service"}
+logs:
+  files:
+    - {path: ./sandbox/logs/demo-service.log, patterns: {error: "ERROR|Traceback", critical: "CRITICAL|OOM"}}
+    - {path: /var/log/auth.log, optional: true}
+    - {path: /var/log/syslog, optional: true}
+ssh_security:
+  sshd_config: /etc/ssh/sshd_config
+  auth_log: /var/log/auth.log
+  optional: true
+permissions:
+  audit_paths: ["/etc/passwd", "/etc/shadow", "/etc/ssh/sshd_config", "~/.ssh"]

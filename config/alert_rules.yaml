@@ -1,0 +1,80 @@
+rules:
+  - id: high_cpu
+    metric: cpu.percent
+    op: ">"
+    threshold: 85
+    for_seconds: 15
+    severity: P2
+    sop: SOP-001
+    summary: "CPU {value:.0f}% on {host_id}"
+  - id: high_memory
+    metric: mem.percent
+    op: ">"
+    threshold: 90
+    for_seconds: 15
+    severity: P2
+    sop: SOP-002
+  - id: disk_full_vol
+    metric: disk.vol.percent
+    op: ">="
+    threshold: 90
+    for_seconds: 5
+    severity: P2
+    sop: SOP-003
+  - id: disk_full_root
+    metric: disk.percent
+    op: ">="
+    threshold: 90
+    for_seconds: 30
+    severity: P2
+    sop: SOP-003
+  - id: service_down
+    metric: service.up
+    op: "=="
+    threshold: 0
+    for_seconds: 10
+    severity: P1
+    sop: SOP-004
+  - id: dns_failure
+    metric: dns.up
+    op: "=="
+    threshold: 0
+    for_seconds: 10
+    severity: P2
+    sop: SOP-005
+  - id: tcp_unreachable
+    metric: conn.tcp_up
+    op: "=="
+    threshold: 0
+    for_seconds: 10
+    severity: P2
+    sop: SOP-006
+  - id: http_down
+    metric: http.up
+    op: "=="
+    threshold: 0
+    for_seconds: 10
+    severity: P1
+    sop: SOP-004
+  - id: tls_expiring
+    metric: tls.days_to_expiry
+    op: "<"
+    threshold: 14
+    for_seconds: 0
+    severity: P3
+  - id: ssh_bruteforce
+    metric: ssh.failed_logins_5m
+    op: ">"
+    threshold: 20
+    for_seconds: 0
+    severity: P3
+  - id: host_stale
+    type: heartbeat
+    stale_after_seconds: 30
+    severity: P1
+  - id: log_error_burst
+    metric: log.errors_per_min
+    op: ">"
+    threshold: 10
+    for_seconds: 0
+    severity: P3

@@ -1,0 +1,12 @@
+host: "0.0.0.0"
+port: 8000
+db_url: "sqlite:///./data/infraops.db"
+api_key: "dev-secret-key"
+sandbox_dir: "./sandbox"
+aws_mode: "mock"
+aws_region: "ap-south-1"
+auto_remediate: true
+rules_file: "config/alert_rules.yaml"
+sops_dir: "sops"
+reports_dir: "reports"
+stale_host_seconds: 30
