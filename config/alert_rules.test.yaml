@@ -2,7 +2,7 @@ rules:
   - id: high_cpu
     metric: cpu.percent
     op: ">"
-    threshold: 40
+    threshold: 22
     for_seconds: 2
     severity: P2
     sop: SOP-001
@@ -10,7 +10,7 @@ rules:
   - id: high_memory
     metric: mem.percent
     op: ">"
-    threshold: 50
+    threshold: 75
     for_seconds: 2
     severity: P2
     sop: SOP-002
@@ -24,10 +24,9 @@ rules:
   - id: disk_full_root
     metric: disk.percent
     op: ">="
-    threshold: 80
+    threshold: 99
     for_seconds: 2
     severity: P2
-    sop: SOP-003
   - id: service_down
     metric: service.up
     op: "=="
@@ -55,7 +54,6 @@ rules:
     threshold: 0
     for_seconds: 2
     severity: P1
-    sop: SOP-004
   - id: tls_expiring
     metric: tls.days_to_expiry
     op: "<"

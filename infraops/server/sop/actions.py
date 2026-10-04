@@ -49,7 +49,7 @@ def action_top_processes(params: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "name": info["name"],
                     "cpu": float(info["cpu_percent"] or 0.0),
                     "rss_mb": round(rss / (1024 * 1024), 2),
-                    "sandbox_marked": is_sandbox_process(pid),
+                    "sandbox_marked": False,
                 }
             )
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -57,6 +57,8 @@ def action_top_processes(params: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     key = "rss_mb" if sort_by == "mem" else "cpu"
     sorted_procs = sorted(procs, key=lambda x: x[key], reverse=True)[:limit]
+    for sp in sorted_procs:
+        sp["sandbox_marked"] = is_sandbox_process(sp["pid"])
     return sorted_procs
 
 
@@ -73,25 +75,28 @@ def action_identify_offender(params: Dict[str, Any]) -> Dict[str, Any]:
             if pid <= 1 or pid == os.getpid():
                 continue
 
-            marked = is_sandbox_process(pid)
-            if require_marker and not marked:
-                continue
-
             if metric_type == "cpu":
                 val = float(p.info["cpu_percent"] or 0.0)
             else:
                 mem = p.info["memory_info"]
                 val = (mem.rss / psutil.virtual_memory().total) * 100.0 if mem else 0.0
 
-            if val >= min_pct or marked:
-                candidates.append(
-                    {
-                        "pid": pid,
-                        "name": p.info["name"],
-                        "value": val,
-                        "sandbox_marked": marked,
-                    }
-                )
+            # Filter non-consumers before checking sandbox marker
+            if val < min_pct:
+                continue
+
+            marked = is_sandbox_process(pid)
+            if require_marker and not marked:
+                continue
+
+            candidates.append(
+                {
+                    "pid": pid,
+                    "name": p.info["name"],
+                    "value": val,
+                    "sandbox_marked": marked,
+                }
+            )
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 

@@ -29,11 +29,7 @@ def start_cpu_hog(num_workers: int = 2):
     stop_cpu_hog()
 
     worker_code = (
-        "import os, time\n"
-        "os.environ['INFRAOPS_SIM'] = '1'\n"
-        "while True:\n"
-        "    _ = 123456 * 654321\n"
-        "    time.sleep(0.0001)\n"
+        "import os\nos.environ['INFRAOPS_SIM'] = '1'\nwhile True:\n    _ = 123456 * 654321\n"
     )
 
     env = os.environ.copy()

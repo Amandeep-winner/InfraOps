@@ -66,3 +66,12 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def reset_db_engine() -> None:
+    """Reset cached database engine and sessionmaker (for test isolation)."""
+    global _engine, _session_factory
+    if _engine is not None:
+        _engine.dispose()
+    _engine = None
+    _session_factory = None

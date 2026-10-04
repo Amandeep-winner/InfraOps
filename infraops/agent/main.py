@@ -3,6 +3,7 @@
 import argparse
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +28,23 @@ from infraops.common.schemas import IngestBatch, LogEvent, MetricPoint, Snapshot
 logger = setup_logger("infraops.agent")
 
 
+def _remap_sandbox_paths(obj: Any, sandbox_root: Path) -> Any:
+    if isinstance(obj, str):
+        s = obj.strip()
+        if s.startswith("./sandbox") or s.startswith(".\\sandbox"):
+            rel = s[9:].lstrip("/\\")
+            return str(sandbox_root / rel)
+        elif s.startswith("sandbox/") or s.startswith("sandbox\\"):
+            rel = s[8:].lstrip("/\\")
+            return str(sandbox_root / rel)
+        return obj
+    elif isinstance(obj, dict):
+        return {k: _remap_sandbox_paths(v, sandbox_root) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_remap_sandbox_paths(v, sandbox_root) for v in obj]
+    return obj
+
+
 class Agent:
     """Orchestrates collectors, builds batches, and delegates shipping."""
 
@@ -39,6 +57,7 @@ class Agent:
         self.config: Dict[str, Any] = {}
         if Path(self.config_path).is_file():
             self.config = load_yaml(self.config_path)
+            self.config = _remap_sandbox_paths(self.config, self.settings.get_sandbox_path())
 
         self.interval = float(self.config.get("interval_seconds", 5))
         self.fast_collectors: List[BaseCollector] = [
@@ -76,16 +95,20 @@ class Agent:
         all_snapshots: List[SnapshotPayload] = []
         all_logs: List[LogEvent] = []
 
-        # Fast collectors
-        for collector in self.fast_collectors:
+        # Fast collectors (executed concurrently)
+        def _run_col(col):
             try:
-                metrics, snapshot, logs = collector.collect()
+                return col.collect()
+            except Exception as e:
+                logger.warning("Collector '%s' failed: %s", col.name, e)
+                return [], None, []
+
+        with ThreadPoolExecutor(max_workers=min(len(self.fast_collectors), 8)) as pool:
+            for metrics, snapshot, logs in pool.map(_run_col, self.fast_collectors):
                 all_metrics.extend(metrics)
                 if snapshot:
                     all_snapshots.append(snapshot)
                 all_logs.extend(logs)
-            except Exception as e:
-                logger.warning("Collector '%s' failed: %s", collector.name, e)
 
         # Slow collectors
         if include_slow or (now - self.last_slow_run >= self.slow_interval):

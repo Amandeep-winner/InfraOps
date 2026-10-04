@@ -26,7 +26,17 @@ def assert_in_sandbox(path: str | Path, allow_nonexistent: bool = True) -> Path:
     Resolves symlinks, normalizes parent traversal ('..'), and prevents directory escapes.
     """
     sandbox_root = get_sandbox_dir()
-    target = Path(path)
+    str_path = str(path).strip()
+    if str_path.startswith("./sandbox") or str_path.startswith(".\\sandbox"):
+        rel = str_path[9:].lstrip("/\\")
+        target = sandbox_root / rel
+    elif str_path.startswith("sandbox/") or str_path.startswith("sandbox\\"):
+        rel = str_path[8:].lstrip("/\\")
+        target = sandbox_root / rel
+    elif str_path in ("./sandbox", ".\\sandbox", "sandbox"):
+        target = sandbox_root
+    else:
+        target = Path(path)
 
     # If the path is relative, resolve it relative to current working directory or sandbox
     resolved_target = target.resolve()
@@ -60,6 +70,21 @@ def is_sandbox_process(pid: int) -> bool:
         if pid == parent_pid:
             return False
     except AttributeError:
+        pass
+
+    # Fast check: verify if PID matches any known pidfile in sandbox/run
+    try:
+        run_dir = get_sandbox_dir() / "run"
+        if run_dir.is_dir():
+            for pf in run_dir.glob("*.pid"):
+                try:
+                    text = pf.read_text(encoding="utf-8").strip()
+                    for part in text.split(","):
+                        if part.strip().isdigit() and int(part.strip()) == pid:
+                            return True
+                except Exception:
+                    pass
+    except Exception:
         pass
 
     try:

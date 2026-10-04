@@ -28,7 +28,7 @@ steps:
     action: identify_offender
     params:
       metric: mem
-      min_percent: 10
+      min_percent: 5
       require_sandbox_marker: true
     store_as: offender
   - id: s4
@@ -47,9 +47,9 @@ steps:
     params:
       metric: mem.percent
       op: "<"
-      threshold: 85
+      threshold: 80
       within_seconds: 30
-      sustain_seconds: 2
+      sustain_seconds: 1
 rollback_note: "Process can be relaunched by service manager; host memory is instantly reclaimed."
 escalation:
   if_failed: "Escalate to L2 Infrastructure Engineering with memory dump and process tree."

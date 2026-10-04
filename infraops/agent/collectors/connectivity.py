@@ -74,7 +74,7 @@ class ConnectivityCollector(BaseCollector):
                 MetricPoint(
                     name="conn.tcp_up",
                     value=1.0 if up else 0.0,
-                    labels={"name": name, "status": status},
+                    labels={"name": name},
                     ts=now,
                 )
             )
@@ -98,7 +98,7 @@ class ConnectivityCollector(BaseCollector):
                 MetricPoint(
                     name="conn.ping_up",
                     value=1.0 if up else 0.0,
-                    labels={"target": pt, "method": method},
+                    labels={"target": pt},
                     ts=now,
                 )
             )

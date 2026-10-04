@@ -28,7 +28,7 @@ steps:
     action: identify_offender
     params:
       metric: cpu
-      min_percent: 40
+      min_percent: 15
       require_sandbox_marker: true
     store_as: offender
   - id: s4

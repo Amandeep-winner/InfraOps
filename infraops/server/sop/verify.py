@@ -23,6 +23,7 @@ def verify_metric_condition(params: Dict[str, Any], db: Session, host_id: str) -
     consecutive_ok_start = None
 
     while time.time() <= deadline:
+        db.expire_all()
         # Query latest metric for host
         m = db.scalars(
             select(Metric)
