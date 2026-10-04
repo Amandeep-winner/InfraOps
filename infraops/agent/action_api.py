@@ -14,6 +14,12 @@ logger = setup_logger("infraops.agent.action_api")
 app = FastAPI(title="InfraOps Agent Action API", version="0.1.0")
 
 
+@app.get("/health")
+def action_api_health():
+    """Agent health check endpoint."""
+    return {"status": "ok"}
+
+
 @app.post("/agent/action", response_model=ActionResponse, dependencies=[Depends(verify_api_key)])
 def run_action(req: ActionRequest):
     """Execute an allowlisted remediation or diagnostic action locally on the agent host."""
