@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Node: {{ host.id }} - InfraOps{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <a href="/" style="color: var(--text-muted); text-decoration: none;">&larr; Overview</a>
+      <span style="color: var(--text-muted);">/</span>
+      <h1 class="page-title" style="margin: 0;">{{ host.id }}</h1>
+      <span class="status-dot {% if host.status == 'online' %}online{% else %}offline{% endif %}"></span>
+    </div>
+    <p class="page-subtitle">Kind: <code>{{ host.kind or 'linux' }}</code> | IP: <code>{{ host.ip_address or '127.0.0.1' }}</code> | OS: {{ host.os or 'Linux' }} | Last seen: {{ host.last_seen.strftime('%Y-%m-%d %H:%M:%SZ') if host.last_seen else 'N/A' }}</p>
+  </div>
+</div>
+
+<!-- Telemetry Time-Series Charts Grid -->
+<div class="grid-2" style="margin-bottom: 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">CPU Utilization (%)</h2>
+    </div>
+    <div class="chart-box">
+      <canvas id="chart-cpu"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Memory Utilization (%)</h2>
+    </div>
+    <div class="chart-box">
+      <canvas id="chart-mem"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Disk Usage (%)</h2>
+    </div>
+    <div class="chart-box">
+      <canvas id="chart-disk"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Network Latency (ms)</h2>
+    </div>
+    <div class="chart-box">
+      <canvas id="chart-net"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Top Processes and Services -->
+<div class="grid-2" style="margin-bottom: 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Top Active Processes</h2>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>PID</th>
+            <th>Name</th>
+            <th>CPU %</th>
+            <th>Memory (MB)</th>
+            <th>Sandbox Marker</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in top_processes %}
+          <tr>
+            <td><code>{{ p.pid }}</code></td>
+            <td><strong>{{ p.name }}</strong></td>
+            <td style="font-family: var(--font-mono);">{{ "%.1f"|format(p.cpu_percent or 0) }}%</td>
+            <td style="font-family: var(--font-mono);">{{ "%.1f"|format((p.memory_rss or 0) / 1048576) }}</td>
+            <td>
+              {% if p.is_sandbox_marked %}
+              <span class="badge badge-resolved">Marked</span>
+              {% else %}
+              <span class="badge" style="background-color: var(--bg-primary); color: var(--text-muted);">System</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1rem;">No recent process telemetry.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Monitored Services</h2>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Port / PID</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in services %}
+          <tr>
+            <td><strong>{{ s.name }}</strong></td>
+            <td><code>{{ s.type or 'daemon' }}</code></td>
+            <td>
+              {% if s.up %}
+              <span class="badge badge-resolved">Running</span>
+              {% else %}
+              <span class="badge badge-p1">Stopped</span>
+              {% endif %}
+            </td>
+            <td><code>{{ s.port or s.pid or 'N/A' }}</code></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No declared services found for this node.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Security Findings and Logs -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Security & Permission Findings</h2>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Target</th>
+            <th>Check</th>
+            <th>Severity</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in security_findings %}
+          <tr>
+            <td><code>{{ f.target }}</code></td>
+            <td>{{ f.check }}</td>
+            <td><span class="badge badge-{{ f.severity|lower }}">{{ f.severity }}</span></td>
+            <td>{{ f.detail }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1rem;">No security vulnerabilities detected on host.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Recent Host Log Events</h2>
+    </div>
+    <div class="table-container" style="max-height: 280px; overflow-y: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Source</th>
+            <th>Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_logs %}
+          <tr>
+            <td style="font-family: var(--font-mono); font-size: 0.75rem;">{{ log.ts }}</td>
+            <td><code>{{ log.source }}</code></td>
+            <td style="font-family: var(--font-mono); font-size: 0.8rem;">{{ log.message }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1rem;">No recent log events.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const cpuData = {{ series.cpu|tojson }};
+  const memData = {{ series.mem|tojson }};
+  const diskData = {{ series.disk|tojson }};
+  const netData = {{ series.net|tojson }};
+
+  drawLineChart("chart-cpu", cpuData, "CPU", "%", "#ef4444");
+  drawLineChart("chart-mem", memData, "Memory", "%", "#f97316");
+  drawLineChart("chart-disk", diskData, "Disk", "%", "#3b82f6");
+  drawLineChart("chart-net", netData, "Latency", "ms", "#10b981");
+
+  setupAutoRefresh(5000);
+</script>
+{% endblock %}

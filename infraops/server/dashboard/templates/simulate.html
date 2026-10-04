@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Incident Simulator - InfraOps NOC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Interactive Incident Simulator</h1>
+    <p class="page-subtitle">Inject safe, realistic infrastructure faults to observe automated L1 incident handling</p>
+  </div>
+  <div style="display: flex; align-items: center; gap: 0.75rem; background-color: var(--bg-card); padding: 0.5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+    <label style="margin: 0; font-size: 0.85rem; cursor: pointer;" for="mode-toggle">Manual / L1 Guided Mode:</label>
+    <label class="switch">
+      <input type="checkbox" id="mode-toggle">
+      <span class="slider"></span>
+    </label>
+  </div>
+</div>
+
+<div class="banner banner-warning">
+  <div>
+    <strong>Sandbox Only Guardrail:</strong>
+    <span>All simulated faults, processes, and remediations are strictly confined within <code>./sandbox/</code> and cannot affect the host system.</span>
+  </div>
+</div>
+
+<!-- 6 Simulators Grid -->
+<div class="grid-3">
+  <!-- 1. High CPU -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">INC-001: High CPU</h3>
+      <span class="badge badge-p1">P1 Critical</span>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+      Spawns busy-loop workers with sandbox markers to breach sustained CPU thresholds.
+    </p>
+    <div style="font-size: 0.8rem; margin-bottom: 1rem;">
+      <div>Alert: <code>high_cpu</code></div>
+      <div>Runbook: <code>SOP-001</code></div>
+      <div>Remediation: Renice offender, terminate process</div>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <button id="sim-btn-cpu" class="btn btn-primary btn-sm" onclick="runSim('cpu')">Trigger Fault</button>
+      <button class="btn btn-outline btn-sm" onclick="stopSim('cpu')">Stop</button>
+    </div>
+  </div>
+
+  <!-- 2. High Memory -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">INC-002: High Memory</h3>
+      <span class="badge badge-p1">P1 Critical</span>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+      Allocates memory in controlled chunks up to a safe cap to trigger memory alerts.
+    </p>
+    <div style="font-size: 0.8rem; margin-bottom: 1rem;">
+      <div>Alert: <code>high_memory</code></div>
+      <div>Runbook: <code>SOP-002</code></div>
+      <div>Remediation: Top RSS analysis, process termination</div>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <button id="sim-btn-memory" class="btn btn-primary btn-sm" onclick="runSim('memory')">Trigger Fault</button>
+      <button class="btn btn-outline btn-sm" onclick="stopSim('memory')">Stop</button>
+    </div>
+  </div>
+
+  <!-- 3. Disk Full -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">INC-003: Disk Full</h3>
+      <span class="badge badge-p2">P2 High</span>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+      Fills the virtual sandbox volume with uncompressed dummy log files past 95%.
+    </p>
+    <div style="font-size: 0.8rem; margin-bottom: 1rem;">
+      <div>Alert: <code>disk_full_vol</code></div>
+      <div>Runbook: <code>SOP-003</code></div>
+      <div>Remediation: Large file audit, clean old logs</div>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <button id="sim-btn-disk" class="btn btn-primary btn-sm" onclick="runSim('disk')">Trigger Fault</button>
+      <button class="btn btn-outline btn-sm" onclick="stopSim('disk')">Stop</button>
+    </div>
+  </div>
+
+  <!-- 4. Service Down -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">INC-004: Service Down</h3>
+      <span class="badge badge-p1">P1 Critical</span>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+      Terminates the managed demo HTTP service process running on port 8081.
+    </p>
+    <div style="font-size: 0.8rem; margin-bottom: 1rem;">
+      <div>Alert: <code>service_down</code></div>
+      <div>Runbook: <code>SOP-004</code></div>
+      <div>Remediation: Check logs, service restart, health check</div>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <button id="sim-btn-service" class="btn btn-primary btn-sm" onclick="runSim('service')">Trigger Fault</button>
+      <button class="btn btn-outline btn-sm" onclick="stopSim('service')">Stop</button>
+    </div>
+  </div>
+
+  <!-- 5. DNS Failure -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">INC-005: DNS Failure</h3>
+      <span class="badge badge-p2">P2 High</span>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+      Simulates DNS resolver failure by directing agent queries to an unreachable port.
+    </p>
+    <div style="font-size: 0.8rem; margin-bottom: 1rem;">
+      <div>Alert: <code>dns_failure</code></div>
+      <div>Runbook: <code>SOP-005</code></div>
+      <div>Remediation: Diagnose resolver, switch to fallback</div>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <button id="sim-btn-dns" class="btn btn-primary btn-sm" onclick="runSim('dns')">Trigger Fault</button>
+      <button class="btn btn-outline btn-sm" onclick="stopSim('dns')">Stop</button>
+    </div>
+  </div>
+
+  <!-- 6. Network Connectivity -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">INC-006: Connectivity</h3>
+      <span class="badge badge-p2">P2 High</span>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+      Stops the upstream TCP dependency daemon running on port 8082.
+    </p>
+    <div style="font-size: 0.8rem; margin-bottom: 1rem;">
+      <div>Alert: <code>tcp_unreachable</code></div>
+      <div>Runbook: <code>SOP-006</code></div>
+      <div>Remediation: Port probe, restart upstream service</div>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <button id="sim-btn-network" class="btn btn-primary btn-sm" onclick="runSim('network')">Trigger Fault</button>
+      <button class="btn btn-outline btn-sm" onclick="stopSim('network')">Stop</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function getMode() {
+    const isManual = document.getElementById("mode-toggle").checked;
+    return isManual ? "manual" : "auto";
+  }
+
+  function runSim(name) {
+    triggerSimulator(name, getMode());
+  }
+
+  function stopSim(name) {
+    stopSimulation(name);
+  }
+</script>
+{% endblock %}

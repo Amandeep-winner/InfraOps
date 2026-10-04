@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}NOC Overview - InfraOps{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Operations Overview</h1>
+    <p class="page-subtitle">Real-time infrastructure health, telemetry, and L1 incident response</p>
+  </div>
+</div>
+
+<!-- Key Stat Widgets -->
+<div class="grid-4" style="margin-bottom: 1.5rem;">
+  <div class="stat-box" style="border-left: 4px solid var(--p1-color);">
+    <div class="stat-label">Critical Incidents (P1)</div>
+    <div class="stat-value" style="color: var(--p1-color);">{{ stats.p1_count }}</div>
+  </div>
+  <div class="stat-box" style="border-left: 4px solid var(--p2-color);">
+    <div class="stat-label">High / Med Incidents</div>
+    <div class="stat-value" style="color: var(--p2-color);">{{ stats.p2_p3_count }}</div>
+  </div>
+  <div class="stat-box" style="border-left: 4px solid var(--color-warning);">
+    <div class="stat-label">Active Alerts Firing</div>
+    <div class="stat-value" style="color: var(--color-warning);">{{ stats.active_alerts_count }}</div>
+  </div>
+  <div class="stat-box" style="border-left: 4px solid var(--color-success);">
+    <div class="stat-label">Monitored Hosts</div>
+    <div class="stat-value" style="color: var(--color-success);">{{ stats.total_hosts }}</div>
+  </div>
+</div>
+
+<!-- Host Cards Grid -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <h2 class="card-title">Monitored Infrastructure Nodes</h2>
+    <span class="badge badge-resolved">{{ hosts|length }} Active</span>
+  </div>
+  <div class="grid-3">
+    {% for h in hosts %}
+    <a href="/hosts/{{ h.id }}" class="host-card">
+      <div class="host-header">
+        <div class="host-title-area">
+          <span class="status-dot {% if h.status == 'online' %}online{% else %}offline{% endif %}"></span>
+          <strong>{{ h.id }}</strong>
+        </div>
+        <span class="badge" style="background-color: var(--bg-primary);">{{ h.kind or 'linux' }}</span>
+      </div>
+      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+        IP: <code>{{ h.ip_address or '127.0.0.1' }}</code> | OS: {{ h.os or 'Linux' }}
+      </div>
+      <div class="host-gauges">
+        <div class="gauge-row">
+          <span>CPU</span>
+          <div class="gauge-bar-bg">
+            <div class="gauge-bar-fill {% if (h.latest_cpu or 0) > 80 %}danger{% elif (h.latest_cpu or 0) > 60 %}warning{% endif %}" style="width: {{ h.latest_cpu or 0 }}%;"></div>
+          </div>
+          <span style="font-family: var(--font-mono);">{{ "%.0f"|format(h.latest_cpu or 0) }}%</span>
+        </div>
+        <div class="gauge-row">
+          <span>Memory</span>
+          <div class="gauge-bar-bg">
+            <div class="gauge-bar-fill {% if (h.latest_mem or 0) > 85 %}danger{% elif (h.latest_mem or 0) > 70 %}warning{% endif %}" style="width: {{ h.latest_mem or 0 }}%;"></div>
+          </div>
+          <span style="font-family: var(--font-mono);">{{ "%.0f"|format(h.latest_mem or 0) }}%</span>
+        </div>
+        <div class="gauge-row">
+          <span>Disk</span>
+          <div class="gauge-bar-bg">
+            <div class="gauge-bar-fill {% if (h.latest_disk or 0) > 90 %}danger{% elif (h.latest_disk or 0) > 75 %}warning{% endif %}" style="width: {{ h.latest_disk or 0 }}%;"></div>
+          </div>
+          <span style="font-family: var(--font-mono);">{{ "%.0f"|format(h.latest_disk or 0) }}%</span>
+        </div>
+      </div>
+    </a>
+    {% else %}
+    <div style="padding: 1.5rem; color: var(--text-secondary); grid-column: span 3; text-align: center;">
+      No registered hosts yet. Start the agent or run a demo simulation to register nodes.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Active Alerts -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Active Alert Breaches</h2>
+      <span class="badge badge-p1">{{ active_alerts|length }} Firing</span>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>Host</th>
+            <th>Breach Value</th>
+            <th>Severity</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in active_alerts %}
+          <tr>
+            <td><strong>{{ a.rule_id }}</strong></td>
+            <td><code>{{ a.host_id }}</code></td>
+            <td style="font-family: var(--font-mono);">{{ "%.1f"|format(a.value) }}</td>
+            <td><span class="badge badge-{{ a.severity|lower }}">{{ a.severity }}</span></td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+              All metric rules operating within normal thresholds.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Incidents -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Recent Incidents</h2>
+      <a href="/incidents" style="font-size: 0.8rem; color: var(--accent-color); text-decoration: none;">View all &rarr;</a>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Host</th>
+            <th>State</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inc in recent_incidents %}
+          <tr>
+            <td><a href="/incidents/{{ inc.id }}" style="color: var(--accent-color); font-weight: 600; text-decoration: none;">{{ inc.id }}</a></td>
+            <td>{{ inc.title|truncate(35) }}</td>
+            <td><code>{{ inc.host_id }}</code></td>
+            <td><span class="badge badge-{{ inc.state|lower }}">{{ inc.state }}</span></td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+              No incidents recorded. Infrastructure is healthy.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  setupAutoRefresh(5000);
+</script>
+{% endblock %}

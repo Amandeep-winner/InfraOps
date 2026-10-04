@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Network Tools - InfraOps NOC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Network &amp; CIDR Diagnostics Tools</h1>
+    <p class="page-subtitle">Interactive subnet calculation, DNS resolution, and TCP port probing utilities</p>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- CIDR Calculator -->
+  <div class="card" style="grid-column: span 2;">
+    <div class="card-header">
+      <h2 class="card-title">IPv4 CIDR Calculator &amp; Subnetting Tool</h2>
+      <span class="badge" style="background-color: var(--bg-primary);">AWS 5-IP Reservation Aware</span>
+    </div>
+
+    <form method="GET" action="/tools" style="display: flex; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem;">
+      <div style="flex: 2;">
+        <label for="cidr">CIDR Block (IPv4):</label>
+        <input type="text" id="cidr" name="cidr" value="{{ cidr_query or '10.0.0.0/16' }}" placeholder="10.0.0.0/16" required>
+      </div>
+      <div style="flex: 1;">
+        <label for="new_prefix">Split Prefix (Optional):</label>
+        <input type="number" id="new_prefix" name="new_prefix" value="{{ split_prefix_query or '24' }}" min="1" max="32" placeholder="24">
+      </div>
+      <div>
+        <button type="submit" class="btn btn-primary">Calculate</button>
+      </div>
+    </form>
+
+    {% if cidr_result %}
+    <div class="grid-4" style="margin-bottom: 1.5rem;">
+      <div class="stat-box">
+        <div class="stat-label">Netmask</div>
+        <div style="font-family: var(--font-mono); font-size: 1.1rem; margin-top: 0.25rem;">{{ cidr_result.info.netmask }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Total Addresses</div>
+        <div class="stat-value">{{ cidr_result.info.total_ips }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Standard Usable</div>
+        <div class="stat-value">{{ cidr_result.info.standard_usable_hosts }}</div>
+      </div>
+      <div class="stat-box" style="border-left: 4px solid var(--accent-color);">
+        <div class="stat-label">AWS Usable Hosts</div>
+        <div class="stat-value" style="color: var(--accent-color);">{{ cidr_result.info.aws_usable_hosts }}</div>
+      </div>
+    </div>
+
+    <!-- AWS 5 Reserved IP Breakdown -->
+    <div style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.5rem;">
+      <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.5rem;">AWS 5 Reserved IP Address Breakdown:</div>
+      <div class="grid-4" style="gap: 0.5rem; font-size: 0.8rem;">
+        <div><code>.0</code>: Network address</div>
+        <div><code>.1</code>: VPC router</div>
+        <div><code>.2</code>: AmazonProvidedDNS</div>
+        <div><code>.3</code>: Future use</div>
+      </div>
+    </div>
+
+    {% if cidr_result.subnets %}
+    <div>
+      <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem;">Split Subnets ({{ cidr_result.subnets|length }})</h3>
+      <div class="table-container" style="max-height: 240px; overflow-y: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Subnet CIDR</th>
+              <th>Network IP</th>
+              <th>Broadcast IP</th>
+              <th>Total IPs</th>
+              <th>AWS Usable</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sub in cidr_result.subnets %}
+            <tr>
+              <td><code>{{ sub.cidr }}</code></td>
+              <td style="font-family: var(--font-mono);">{{ sub.network_ip }}</td>
+              <td style="font-family: var(--font-mono);">{{ sub.broadcast_ip }}</td>
+              <td style="font-family: var(--font-mono);">{{ sub.total_ips }}</td>
+              <td style="font-family: var(--font-mono); color: var(--color-success);">{{ sub.aws_usable_hosts }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  <!-- DNS Lookup Tool -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">DNS Resolution Tester</h2>
+    </div>
+    <form id="dns-form" onsubmit="runDnsTest(event)">
+      <div class="form-group">
+        <label for="dns-input">Hostname / FQDN:</label>
+        <input type="text" id="dns-input" value="localhost" placeholder="example.com" required>
+      </div>
+      <button type="submit" class="btn btn-outline" style="width: 100%;">Resolve DNS</button>
+    </form>
+    <div id="dns-result" style="margin-top: 1rem; display: none; background-color: var(--bg-primary); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.85rem;"></div>
+  </div>
+
+  <!-- Port Checker Tool -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">TCP Port Prober</h2>
+    </div>
+    <form id="port-form" onsubmit="runPortTest(event)">
+      <div class="grid-2" style="gap: 0.5rem; margin-bottom: 0.5rem;">
+        <div>
+          <label for="port-host">Host / IP:</label>
+          <input type="text" id="port-host" value="127.0.0.1" required>
+        </div>
+        <div>
+          <label for="port-num">Port:</label>
+          <input type="number" id="port-num" value="8081" min="1" max="65535" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-outline" style="width: 100%;">Probe Port</button>
+    </form>
+    <div id="port-result" style="margin-top: 1rem; display: none; background-color: var(--bg-primary); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.85rem;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function runDnsTest(e) {
+    e.preventDefault();
+    const name = document.getElementById("dns-input").value;
+    const box = document.getElementById("dns-result");
+    box.style.display = "block";
+    box.innerHTML = "Resolving...";
+    try {
+      const res = await fetch(`/api/v1/tools/dns?name=${encodeURIComponent(name)}`);
+      const data = await res.json();
+      if (data.resolved) {
+        box.innerHTML = `<span style="color: var(--color-success); font-weight: 600;">Resolved in ${data.latency_ms}ms:</span><br>IPs: <code>${data.ips.join(", ") || "None"}</code>`;
+      } else {
+        box.innerHTML = `<span style="color: var(--color-danger); font-weight: 600;">Lookup Failed (${data.latency_ms}ms):</span><br>${data.error}`;
+      }
+    } catch (err) {
+      box.innerHTML = `Error: ${err.message}`;
+    }
+  }
+
+  async function runPortTest(e) {
+    e.preventDefault();
+    const host = document.getElementById("port-host").value;
+    const port = document.getElementById("port-num").value;
+    const box = document.getElementById("port-result");
+    box.style.display = "block";
+    box.innerHTML = "Connecting...";
+    try {
+      const res = await fetch(`/api/v1/tools/port?host=${encodeURIComponent(host)}&port=${port}`);
+      const data = await res.json();
+      if (data.open) {
+        box.innerHTML = `<span style="color: var(--color-success); font-weight: 600;">Port ${port} OPEN</span> (${data.latency_ms}ms)`;
+      } else {
+        box.innerHTML = `<span style="color: var(--color-danger); font-weight: 600;">Port ${port} CLOSED / ${data.status}</span> (${data.latency_ms}ms)`;
+      }
+    } catch (err) {
+      box.innerHTML = `Error: ${err.message}`;
+    }
+  }
+</script>
+{% endblock %}

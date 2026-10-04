@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}InfraOps - Infrastructure NOC{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body data-auto-refresh="{% block auto_refresh %}true{% endblock %}">
+  <header>
+    <a href="/" class="brand">
+      <span class="brand-badge">L1 NOC</span>
+      <span>InfraOps</span>
+    </a>
+    <nav>
+      <a href="/" class="{% if active_tab == 'overview' %}active{% endif %}">Overview</a>
+      <a href="/incidents" class="{% if active_tab == 'incidents' %}active{% endif %}">Incidents</a>
+      <a href="/sops" class="{% if active_tab == 'sops' %}active{% endif %}">SOP Library</a>
+      <a href="/simulate" class="{% if active_tab == 'simulate' %}active{% endif %}">Simulator</a>
+      <a href="/tools" class="{% if active_tab == 'tools' %}active{% endif %}">Network Tools</a>
+      <a href="/aws" class="{% if active_tab == 'aws' %}active{% endif %}">AWS Topology</a>
+      <a href="/audit" class="{% if active_tab == 'audit' %}active{% endif %}">Security Audit</a>
+    </nav>
+    <div class="nav-actions">
+      <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()">Light Mode</button>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/static/js/dashboard.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

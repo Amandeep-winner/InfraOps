@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Security Audit - InfraOps NOC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Comprehensive Security &amp; Compliance Audit</h1>
+    <p class="page-subtitle">Unified inspection of Linux OS hardening, filesystem permissions, network firewalls, and cloud IAM least-privilege</p>
+  </div>
+</div>
+
+<!-- Compliance Score Summary -->
+<div class="grid-4" style="margin-bottom: 1.5rem;">
+  <div class="stat-box" style="border-left: 4px solid var(--p1-color);">
+    <div class="stat-label">Critical Findings</div>
+    <div class="stat-value" style="color: var(--p1-color);">{{ audit_summary.critical_count }}</div>
+  </div>
+  <div class="stat-box" style="border-left: 4px solid var(--p2-color);">
+    <div class="stat-label">High / Medium Findings</div>
+    <div class="stat-value" style="color: var(--p2-color);">{{ audit_summary.warning_count }}</div>
+  </div>
+  <div class="stat-box" style="border-left: 4px solid var(--color-success);">
+    <div class="stat-label">Passed Checks</div>
+    <div class="stat-value" style="color: var(--color-success);">{{ audit_summary.passed_count }}</div>
+  </div>
+  <div class="stat-box" style="border-left: 4px solid var(--accent-color);">
+    <div class="stat-label">Overall Compliance</div>
+    <div class="stat-value" style="color: var(--accent-color);">{{ audit_summary.compliance_percent }}%</div>
+  </div>
+</div>
+
+<!-- 1. AWS Ingress Exposures & IAM Violations -->
+<div class="grid-2" style="margin-bottom: 1.5rem;">
+  <!-- Security Group Ingress Risks -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Network Ingress Rules (0.0.0.0/0 Risks)</h2>
+      <span class="badge badge-p1">{{ sg_risks|length }} Exposed</span>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Security Group</th>
+            <th>Severity</th>
+            <th>Exposure Finding</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in sg_risks %}
+          <tr>
+            <td><strong>{{ r.group_name }}</strong><br><code>{{ r.group_id }}</code></td>
+            <td><span class="badge badge-{{ r.severity|lower }}">{{ r.severity }}</span></td>
+            <td>{{ r.message }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No dangerous 0.0.0.0/0 ingress exposures detected.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- IAM Least-Privilege Violations -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">IAM Least-Privilege Wildcard Violations</h2>
+      <span class="badge badge-p1">{{ iam_findings|length }} Flagged</span>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Role Name</th>
+            <th>Severity</th>
+            <th>Policy &amp; Finding</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in iam_findings %}
+          <tr>
+            <td><strong>{{ item.role_name }}</strong></td>
+            <td><span class="badge badge-{{ item.finding.severity|lower }}">{{ item.finding.severity }}</span></td>
+            <td>
+              <div><strong>{{ item.finding.issue }}</strong> (Policy: <code>{{ item.finding.policy_name }}</code>)</div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">{{ item.finding.detail }}</div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">All IAM roles adhere strictly to least-privilege scoping.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Linux OS Hardening & Permissions -->
+<div class="grid-2">
+  <!-- SSH Configuration Findings -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">SSH Security &amp; Daemon Hardening</h2>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Check</th>
+            <th>Status</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in ssh_findings %}
+          <tr>
+            <td><strong>{{ s.check }}</strong></td>
+            <td><span class="badge badge-{{ s.severity|lower }}">{{ s.severity }}</span></td>
+            <td style="font-size: 0.85rem;">{{ s.detail }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">SSH configuration is hardened per baseline standard.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Critical Permissions & World-Writable Scan -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Filesystem Permission Audit</h2>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>File / Directory</th>
+            <th>Finding</th>
+            <th>Severity</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in perm_findings %}
+          <tr>
+            <td><code>{{ p.path }}</code></td>
+            <td>{{ p.message }}</td>
+            <td><span class="badge badge-{{ p.severity|lower }}">{{ p.severity }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No unsafe file permissions or world-writable files found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

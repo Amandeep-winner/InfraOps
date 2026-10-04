@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Incidents - InfraOps NOC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Incident Management</h1>
+    <p class="page-subtitle">L1 operational incidents, SOP automation, and remediation timelines</p>
+  </div>
+</div>
+
+<!-- Incidents Table Card -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">All Incidents ({{ incidents|length }})</h2>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <form method="GET" action="/incidents" style="display: flex; gap: 0.5rem;">
+        <select name="state" onchange="this.form.submit()" style="width: auto; padding: 0.35rem 0.5rem;">
+          <option value="">All States</option>
+          <option value="OPEN" {% if current_state == 'OPEN' %}selected{% endif %}>OPEN</option>
+          <option value="INVESTIGATING" {% if current_state == 'INVESTIGATING' %}selected{% endif %}>INVESTIGATING</option>
+          <option value="IDENTIFIED" {% if current_state == 'IDENTIFIED' %}selected{% endif %}>IDENTIFIED</option>
+          <option value="REMEDIATING" {% if current_state == 'REMEDIATING' %}selected{% endif %}>REMEDIATING</option>
+          <option value="VERIFYING" {% if current_state == 'VERIFYING' %}selected{% endif %}>VERIFYING</option>
+          <option value="RESOLVED" {% if current_state == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
+          <option value="CLOSED" {% if current_state == 'CLOSED' %}selected{% endif %}>CLOSED</option>
+          <option value="ESCALATED" {% if current_state == 'ESCALATED' %}selected{% endif %}>ESCALATED</option>
+        </select>
+        <select name="severity" onchange="this.form.submit()" style="width: auto; padding: 0.35rem 0.5rem;">
+          <option value="">All Severities</option>
+          <option value="P1" {% if current_severity == 'P1' %}selected{% endif %}>P1 - Critical</option>
+          <option value="P2" {% if current_severity == 'P2' %}selected{% endif %}>P2 - High</option>
+          <option value="P3" {% if current_severity == 'P3' %}selected{% endif %}>P3 - Medium</option>
+          <option value="P4" {% if current_severity == 'P4' %}selected{% endif %}>P4 - Low</option>
+        </select>
+      </form>
+    </div>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Incident ID</th>
+          <th>Title</th>
+          <th>Host</th>
+          <th>Severity</th>
+          <th>State</th>
+          <th>Mode</th>
+          <th>SOP</th>
+          <th>Opened</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inc in incidents %}
+        <tr>
+          <td><a href="/incidents/{{ inc.id }}" style="color: var(--accent-color); font-weight: 700; text-decoration: none;">{{ inc.id }}</a></td>
+          <td><strong>{{ inc.title }}</strong></td>
+          <td><code>{{ inc.host_id }}</code></td>
+          <td><span class="badge badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+          <td><span class="badge badge-{{ inc.state|lower }}">{{ inc.state }}</span></td>
+          <td><span class="badge" style="background-color: var(--bg-primary);">{{ inc.mode|upper }}</span></td>
+          <td><code>{{ inc.sop_id or 'Manual' }}</code></td>
+          <td style="font-family: var(--font-mono); font-size: 0.8rem;">
+            {{ inc.opened_at.strftime('%H:%M:%SZ') if inc.opened_at else 'N/A' }}
+          </td>
+          <td>
+            <a href="/incidents/{{ inc.id }}" class="btn btn-outline btn-sm">Inspect</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+            No matching incidents found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  setupAutoRefresh(5000);
+</script>
+{% endblock %}

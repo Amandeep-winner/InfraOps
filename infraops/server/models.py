@@ -155,6 +155,9 @@ class SopRun(Base):
     step_results: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
+SOPRun = SopRun
+
+
 class Approval(Base):
     """Manual L1 intervention approval request."""
 

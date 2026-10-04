@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}SOP Library - InfraOps NOC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Standard Operating Procedures (SOPs)</h1>
+    <p class="page-subtitle">Declarative runbooks, allowlisted actions, and automated remediation workflows</p>
+  </div>
+</div>
+
+<div class="grid-2" style="align-items: start;">
+  <!-- SOP List -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Available Runbooks ({{ sops|length }})</h2>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      {% for s in sops %}
+      <a href="/sops?id={{ s.id }}" class="host-card" style="padding: 1rem; {% if selected_sop.id == s.id %}border-color: var(--accent-color); background-color: var(--bg-hover);{% endif %}">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+          <strong>{{ s.id }}: {{ s.title }}</strong>
+          <span class="badge" style="background-color: var(--bg-primary);">{{ s.steps|length }} steps</span>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0;">{{ s.description|truncate(80) }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Selected SOP Details -->
+  {% if selected_sop %}
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">{{ selected_sop.id }}: {{ selected_sop.title }}</h2>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">{{ selected_sop.description }}</p>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <h3 style="font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.75rem; letter-spacing: 0.05em;">Execution Steps</h3>
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% for step in selected_sop.steps %}
+        <div style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <code>{{ step.id }}</code>
+              <strong>{{ step.name }}</strong>
+            </div>
+            <div style="display: flex; gap: 0.35rem;">
+              <span class="badge badge-{{ step.phase|lower }}">{{ step.phase }}</span>
+              {% if step.risk %}
+              <span class="badge badge-{% if step.risk == 'high' %}p1{% elif step.risk == 'medium' %}p2{% else %}p4{% endif %}">{{ step.risk }} risk</span>
+              {% endif %}
+            </div>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-secondary);">
+            Action: <code>{{ step.action }}</code>
+            {% if step.requires_approval_in_manual %}
+            &bull; <span style="color: var(--color-warning);">Requires operator approval in manual mode</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Rollback & Escalation Notes -->
+    <div style="background-color: var(--bg-primary); border-left: 3px solid var(--accent-color); padding: 0.75rem 1rem; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-bottom: 1rem;">
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">Rollback Procedure:</div>
+      <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ selected_sop.rollback_note or 'No rollback necessary.' }}</div>
+    </div>
+
+    <div style="background-color: var(--bg-primary); border-left: 3px solid var(--p1-color); padding: 0.75rem 1rem; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;">
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">Escalation Path:</div>
+      <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ selected_sop.escalation.if_failed if selected_sop.escalation else 'Escalate to L2 engineering.' }}</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

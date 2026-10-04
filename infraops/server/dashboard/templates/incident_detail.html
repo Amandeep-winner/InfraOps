@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Incident {{ incident.id }} - InfraOps NOC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <a href="/incidents" style="color: var(--text-muted); text-decoration: none;">&larr; Incidents</a>
+      <span style="color: var(--text-muted);">/</span>
+      <h1 class="page-title" style="margin: 0;">{{ incident.id }}</h1>
+      <span class="badge badge-{{ incident.severity|lower }}">{{ incident.severity }}</span>
+      <span class="badge badge-{{ incident.state|lower }}">{{ incident.state }}</span>
+    </div>
+    <p class="page-subtitle">{{ incident.title }} &bull; Target: <code>{{ incident.host_id }}</code> &bull; SOP: <code>{{ incident.sop_id or 'Manual' }}</code> &bull; Mode: <strong>{{ incident.mode|upper }}</strong></p>
+  </div>
+  <div style="display: flex; gap: 0.5rem;">
+    {% if incident.state in ['RESOLVED', 'CLOSED'] %}
+    <a href="/api/v1/incidents/{{ incident.id }}/report" target="_blank" class="btn btn-outline">
+      &darr; Download Report
+    </a>
+    {% endif %}
+    {% if incident.state == 'RESOLVED' %}
+    <button class="btn btn-success" onclick="closeIncident('{{ incident.id }}')">
+      Close Incident
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Visual Stepper: Detect -> Investigate -> Identify -> Remediate -> Verify -> Close -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  {% set step_idx = 0 %}
+  {% if incident.state in ['OPEN', 'DETECTED'] %}{% set step_idx = 1 %}
+  {% elif incident.state == 'INVESTIGATING' %}{% set step_idx = 2 %}
+  {% elif incident.state == 'IDENTIFIED' %}{% set step_idx = 3 %}
+  {% elif incident.state == 'REMEDIATING' %}{% set step_idx = 4 %}
+  {% elif incident.state == 'VERIFYING' %}{% set step_idx = 5 %}
+  {% elif incident.state == 'RESOLVED' %}{% set step_idx = 6 %}
+  {% elif incident.state == 'CLOSED' %}{% set step_idx = 7 %}
+  {% elif incident.state == 'ESCALATED' %}{% set step_idx = -1 %}
+  {% endif %}
+
+  <div class="stepper-container">
+    <div class="stepper-line"></div>
+
+    <div class="stepper-step {% if step_idx > 1 %}completed{% elif step_idx == 1 %}active{% endif %}">
+      <div class="stepper-circle">1</div>
+      <div class="stepper-label">Detect</div>
+    </div>
+
+    <div class="stepper-step {% if step_idx > 2 %}completed{% elif step_idx == 2 %}active{% endif %}">
+      <div class="stepper-circle">2</div>
+      <div class="stepper-label">Investigate</div>
+    </div>
+
+    <div class="stepper-step {% if step_idx > 3 %}completed{% elif step_idx == 3 %}active{% endif %}">
+      <div class="stepper-circle">3</div>
+      <div class="stepper-label">Identify</div>
+    </div>
+
+    <div class="stepper-step {% if step_idx > 4 %}completed{% elif step_idx == 4 %}active{% endif %}">
+      <div class="stepper-circle">4</div>
+      <div class="stepper-label">Remediate</div>
+    </div>
+
+    <div class="stepper-step {% if step_idx > 5 %}completed{% elif step_idx == 5 %}active{% endif %}">
+      <div class="stepper-circle">5</div>
+      <div class="stepper-label">Verify</div>
+    </div>
+
+    <div class="stepper-step {% if step_idx >= 6 %}completed{% endif %}">
+      <div class="stepper-circle">6</div>
+      <div class="stepper-label">Close</div>
+    </div>
+  </div>
+</div>
+
+<!-- Operator Approval Banner in Manual Mode -->
+{% if pending_approval %}
+<div class="banner banner-warning" style="margin-bottom: 1.5rem;">
+  <div>
+    <strong>Operator Approval Required (L1 Guided Manual Mode)</strong>
+    <p style="margin-top: 0.25rem;">Action: <code>{{ pending_approval.action }}</code> | Step: <code>{{ pending_approval.step_id }}</code> | Risk: <span class="badge badge-p2">MEDIUM / HIGH</span></p>
+  </div>
+  <button class="btn btn-primary" onclick="approveIncidentStep('{{ incident.id }}')">
+    Approve &amp; Execute Remediation
+  </button>
+</div>
+{% endif %}
+
+<!-- 2-Column Detail Layout: SOP Steps and Timeline -->
+<div class="grid-2">
+  <!-- SOP Execution Steps -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">SOP Run Steps: {{ incident.sop_id or 'Ad-hoc' }}</h2>
+      <span class="badge badge-resolved">{{ step_results|length }} executed</span>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Phase</th>
+            <th>Action</th>
+            <th>Status</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in step_results %}
+          <tr>
+            <td><code>{{ s.step_id }}</code></td>
+            <td><span class="badge" style="background-color: var(--bg-primary);">{{ s.phase }}</span></td>
+            <td><strong>{{ s.action }}</strong></td>
+            <td>
+              {% if s.ok %}
+              <span class="badge badge-resolved">PASS</span>
+              {% else %}
+              <span class="badge badge-p1">FAIL</span>
+              {% endif %}
+            </td>
+            <td style="font-family: var(--font-mono); font-size: 0.8rem;">{{ s.duration_ms }}ms</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+              SOP engine steps initializing...
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Incident Timeline -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Incident Audit Timeline</h2>
+      <span class="badge" style="background-color: var(--bg-primary);">{{ events|length }} events</span>
+    </div>
+    <div class="timeline" style="max-height: 480px; overflow-y: auto; padding-right: 0.5rem;">
+      {% for ev in events %}
+      <div class="timeline-event">
+        <div class="timeline-time">{{ ev.time_str }}</div>
+        <div class="timeline-body">
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+            <span class="badge badge-{{ ev.phase|lower }}">{{ ev.phase }}</span>
+            <code style="font-size: 0.75rem;">{{ ev.actor }}</code>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-primary);">
+            {{ ev.message }}
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div style="color: var(--text-muted); text-align: center; padding: 1.5rem;">
+        No timeline events logged yet.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  setupAutoRefresh(5000);
+</script>
+{% endblock %}

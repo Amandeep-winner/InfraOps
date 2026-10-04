@@ -3,9 +3,11 @@
 import asyncio
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +15,7 @@ from infraops.common.config import get_settings
 from infraops.server.alerting.engine import AlertEngine
 from infraops.server.alerting.rules import AlertRule
 from infraops.server.api import alerts, aws, health, hosts, incidents, ingest, metrics, sops, tools
+from infraops.server.dashboard.routes import router as dashboard_router
 from infraops.server.db import get_engine, init_db
 from infraops.server.incidents.service import IncidentService
 from infraops.server.models import Alert, Incident
@@ -134,6 +137,14 @@ def create_app() -> FastAPI:
     app.include_router(sops.router, prefix="/api/v1")
     app.include_router(tools.router, prefix="/api/v1")
     app.include_router(aws.router, prefix="/api/v1")
+
+    # Mount static assets
+    static_dir = Path(__file__).parent / "dashboard" / "static"
+    if static_dir.is_dir():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+    # Include server-rendered dashboard router
+    app.include_router(dashboard_router)
 
     return app
 

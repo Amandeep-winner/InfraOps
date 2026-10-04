@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}AWS Infrastructure - InfraOps NOC{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">AWS Infrastructure Topology</h1>
+    <p class="page-subtitle">Cloud resources, network segregation, least-privilege policies, and security posture (Mock Mode: <code>{{ aws_mode|upper }}</code>)</p>
+  </div>
+</div>
+
+<!-- Overview Stats Grid -->
+<div class="grid-4" style="margin-bottom: 1.5rem;">
+  <div class="stat-box">
+    <div class="stat-label">EC2 Instances</div>
+    <div class="stat-value">{{ summary.instances_running }} / {{ summary.instances_total }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">VPC Subnets</div>
+    <div class="stat-value">{{ summary.subnets_count }}</div>
+  </div>
+  <div class="stat-box" style="border-left: 4px solid {% if summary.security_groups_risky > 0 %}var(--p1-color){% else %}var(--color-success){% endif %};">
+    <div class="stat-label">Risky Security Groups</div>
+    <div class="stat-value" style="color: {% if summary.security_groups_risky > 0 %}var(--p1-color){% else %}var(--color-success){% endif %};">{{ summary.security_groups_risky }}</div>
+  </div>
+  <div class="stat-box" style="border-left: 4px solid var(--accent-color);">
+    <div class="stat-label">IAM Least-Privilege Score</div>
+    <div class="stat-value" style="color: var(--accent-color);">{{ summary.iam_compliance_score }}%</div>
+  </div>
+</div>
+
+<!-- 1. EC2 Instances -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <h2 class="card-title">EC2 Workload Instances</h2>
+    <span class="badge badge-resolved">{{ instances|length }} Provisioned</span>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Instance ID</th>
+          <th>State</th>
+          <th>Type</th>
+          <th>Availability Zone</th>
+          <th>Private IP</th>
+          <th>Public IP</th>
+          <th>Subnet ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inst in instances %}
+        <tr>
+          <td><strong>{{ inst.name }}</strong></td>
+          <td><code>{{ inst.instance_id }}</code></td>
+          <td><span class="badge badge-{% if inst.state == 'running' %}resolved{% else %}p3{% endif %}">{{ inst.state }}</span></td>
+          <td><code>{{ inst.instance_type }}</code></td>
+          <td>{{ inst.availability_zone }}</td>
+          <td style="font-family: var(--font-mono);">{{ inst.private_ip or 'None' }}</td>
+          <td style="font-family: var(--font-mono);">{{ inst.public_ip or 'None' }}</td>
+          <td><code>{{ inst.subnet_id }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 2. VPCs and Subnets with CIDR Math -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <h2 class="card-title">VPC Subnets &amp; Address Capacity</h2>
+    <span class="badge" style="background-color: var(--bg-primary);">AWS 5 Reserved IPs Subtracted</span>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Subnet Name</th>
+          <th>Subnet ID</th>
+          <th>CIDR Block</th>
+          <th>AZ</th>
+          <th>Total IPs</th>
+          <th>Standard Usable</th>
+          <th>AWS Usable Hosts</th>
+          <th>Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sub in subnets %}
+        <tr>
+          <td><strong>{{ sub.name }}</strong></td>
+          <td><code>{{ sub.subnet_id }}</code></td>
+          <td><code>{{ sub.cidr_block }}</code></td>
+          <td>{{ sub.availability_zone }}</td>
+          <td style="font-family: var(--font-mono);">{{ sub.total_ips }}</td>
+          <td style="font-family: var(--font-mono);">{{ sub.standard_usable_hosts }}</td>
+          <td style="font-family: var(--font-mono); color: var(--color-success); font-weight: 600;">{{ sub.aws_usable_hosts }}</td>
+          <td><span class="badge" style="background-color: var(--bg-primary);">{{ sub.type }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 3. Security Groups & Risk Analysis -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <h2 class="card-title">Security Groups &amp; Ingress Exposure Audit</h2>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Group Name</th>
+          <th>Group ID</th>
+          <th>Risk Posture</th>
+          <th>Findings &amp; Exposures</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sg in security_groups %}
+        <tr>
+          <td><strong>{{ sg.group_name }}</strong></td>
+          <td><code>{{ sg.group_id }}</code></td>
+          <td>
+            {% if sg.is_risky %}
+            <span class="badge badge-p1">RISKY</span>
+            {% else %}
+            <span class="badge badge-resolved">COMPLIANT</span>
+            {% endif %}
+          </td>
+          <td>
+            {% for r in sg.risk_findings %}
+            <div style="color: var(--p1-color); font-size: 0.8rem; margin-bottom: 0.2rem;">
+              &bull; [{{ r.severity }}] {{ r.message }}
+            </div>
+            {% else %}
+            <span style="color: var(--text-muted); font-size: 0.8rem;">No unrestricted ingress rules detected.</span>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 4. IAM Roles & Least-Privilege -->
+<div class="grid-2" style="margin-bottom: 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">IAM Roles &amp; Least-Privilege Checks</h2>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Role Name</th>
+            <th>Compliance</th>
+            <th>Policies &amp; Findings</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in iam_roles %}
+          <tr>
+            <td><strong>{{ r.role_name }}</strong></td>
+            <td>
+              {% if r.is_least_privilege %}
+              <span class="badge badge-resolved">Compliant</span>
+              {% else %}
+              <span class="badge badge-p1">Non-Compliant</span>
+              {% endif %}
+            </td>
+            <td>
+              {% for f in r.findings %}
+              <div style="font-size: 0.8rem; color: {% if f.severity in ['CRITICAL', 'HIGH'] %}var(--p1-color){% else %}var(--color-warning){% endif %}; margin-bottom: 0.2rem;">
+                &bull; [{{ f.severity }}] {{ f.issue }}: {{ f.detail }}
+              </div>
+              {% else %}
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Scoped policy with no wildcard admin statements.</span>
+              {% endfor %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. S3 Buckets & CloudWatch Alarms -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">S3 Buckets &amp; CloudWatch Alarms</h2>
+    </div>
+    <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem;">S3 Storage Buckets</h3>
+    <div class="table-container" style="margin-bottom: 1.5rem;">
+      <table>
+        <thead>
+          <tr>
+            <th>Bucket Name</th>
+            <th>Versioning</th>
+            <th>Public Access Block</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in s3_buckets %}
+          <tr>
+            <td><strong>{{ b.name }}</strong></td>
+            <td>
+              {% if b.versioning_enabled %}
+              <span class="badge badge-resolved">Enabled</span>
+              {% else %}
+              <span class="badge badge-p3">Disabled</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if b.public_access_block.is_secure %}
+              <span class="badge badge-resolved">All Blocked</span>
+              {% else %}
+              <span class="badge badge-p1">Exposed</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem;">CloudWatch Alarms</h3>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Alarm</th>
+            <th>Metric</th>
+            <th>State</th>
+            <th>Threshold</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in cloudwatch_alarms %}
+          <tr>
+            <td><strong>{{ a.alarm_name }}</strong></td>
+            <td><code>{{ a.metric_name }}</code></td>
+            <td><span class="badge badge-{% if a.state == 'OK' %}resolved{% elif a.state == 'ALARM' %}p1{% else %}p3{% endif %}">{{ a.state }}</span></td>
+            <td style="font-family: var(--font-mono);">{{ a.threshold }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
