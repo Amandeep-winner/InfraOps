@@ -1,0 +1,75 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: infraops-server
+    ports:
+      - "8000:8000"
+    environment:
+      - INFRAOPS_ENV=production
+      - INFRAOPS_API_KEY=infraops-demo-secret-key-32chars-min
+      - INFRAOPS_DATABASE_URL=sqlite:///./sandbox/data/infraops.db
+      - INFRAOPS_AWS_MODE=mock
+      - INFRAOPS_AWS_REGION=us-east-1
+      - INFRAOPS_AUTO_REMEDIATE=true
+    volumes:
+      - server-data:/app/sandbox/data
+      - server-reports:/app/reports
+    networks:
+      - infraops-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  agent-web1:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: infraops-agent-web1
+    environment:
+      - INFRAOPS_HOST_ID=agent-web1
+      - INFRAOPS_SERVER_URL=http://server:8000
+      - INFRAOPS_API_KEY=infraops-demo-secret-key-32chars-min
+      - INFRAOPS_HOST_KIND=docker
+      - INFRAOPS_SANDBOX_DIR=/app/sandbox
+      - INFRAOPS_ACTION_PORT=8099
+    volumes:
+      - agent1-sandbox:/app/sandbox
+    networks:
+      - infraops-net
+    depends_on:
+      server:
+        condition: service_healthy
+
+  agent-web2:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: infraops-agent-web2
+    environment:
+      - INFRAOPS_HOST_ID=agent-web2
+      - INFRAOPS_SERVER_URL=http://server:8000
+      - INFRAOPS_API_KEY=infraops-demo-secret-key-32chars-min
+      - INFRAOPS_HOST_KIND=docker
+      - INFRAOPS_SANDBOX_DIR=/app/sandbox
+      - INFRAOPS_ACTION_PORT=8099
+    volumes:
+      - agent2-sandbox:/app/sandbox
+    networks:
+      - infraops-net
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  server-data:
+  server-reports:
+  agent1-sandbox:
+  agent2-sandbox:
+
+networks:
+  infraops-net:
+    driver: bridge

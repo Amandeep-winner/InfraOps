@@ -1,0 +1,22 @@
+[Unit]
+Description=InfraOps Central Monitoring & Incident Response Server
+After=network.target
+
+[Service]
+Type=simple
+User=infraops
+Group=infraops
+WorkingDirectory=/opt/infraops
+EnvironmentFile=/etc/infraops/server.env
+ExecStart=/opt/infraops/.venv/bin/uvicorn infraops.server.app:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5s
+
+# Hardening directives
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

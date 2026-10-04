@@ -1,0 +1,34 @@
+FROM python:3.11-slim
+
+# Install system utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    iproute2 \
+    procps \
+    net-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root application user
+RUN groupadd -g 1000 infraops && \
+    useradd -u 1000 -g infraops -s /bin/bash -m infraops
+
+WORKDIR /app
+
+# Install Python package dependencies
+COPY pyproject.toml .
+RUN pip install --no-cache-dir .
+
+# Copy application codebase
+COPY . .
+
+# Ensure permissions
+RUN chown -R infraops:infraops /app
+
+USER infraops
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+CMD ["uvicorn", "infraops.server.app:app", "--host", "0.0.0.0", "--port", "8000"]

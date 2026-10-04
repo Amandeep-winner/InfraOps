@@ -1,0 +1,39 @@
+FROM python:3.11-slim
+
+# Install system diagnostic utilities required by bash scripts
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    iproute2 \
+    procps \
+    net-tools \
+    dnsutils \
+    iputils-ping \
+    netcat-openbsd \
+    traceroute \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -g 1000 infraops && \
+    useradd -u 1000 -g infraops -s /bin/bash -m infraops
+
+WORKDIR /app
+
+# Install package dependencies
+COPY pyproject.toml .
+RUN pip install --no-cache-dir .
+
+# Copy application and scripts
+COPY . .
+
+# Ensure executable scripts and permissions
+RUN chmod +x /app/scripts/bash/*.sh && \
+    chown -R infraops:infraops /app
+
+USER infraops
+
+EXPOSE 8099
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8099/health', timeout=3)" || exit 1
+
+CMD ["python", "-m", "infraops.agent.main"]

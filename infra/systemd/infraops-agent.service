@@ -1,0 +1,23 @@
+[Unit]
+Description=InfraOps Edge Telemetry & Incident Response Agent
+After=network.target
+
+[Service]
+Type=simple
+User=infraops
+Group=infraops
+WorkingDirectory=/opt/infraops
+EnvironmentFile=/etc/infraops/agent.env
+ExecStart=/opt/infraops/.venv/bin/python -m infraops.agent.main
+Restart=always
+RestartSec=5s
+
+# Hardening directives
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/infraops/sandbox
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
