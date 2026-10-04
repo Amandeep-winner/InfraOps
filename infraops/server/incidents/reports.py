@@ -116,4 +116,16 @@ def generate_incident_report(
     report_file = out_dir / f"{incident.id}.md"
     report_file.write_text(report_content, encoding="utf-8")
 
+    # Upload to S3 archive
+    try:
+        from infraops.common.config import get_settings
+
+        settings = get_settings()
+        if settings.aws_mode in ["mock", "live"]:
+            from infraops.server.aws.s3 import upload_incident_report
+
+            upload_incident_report(incident.id, report_content)
+    except Exception:
+        pass
+
     return report_content

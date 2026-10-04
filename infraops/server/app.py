@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from infraops.common.config import get_settings
 from infraops.server.alerting.engine import AlertEngine
 from infraops.server.alerting.rules import AlertRule
-from infraops.server.api import alerts, health, hosts, incidents, ingest, metrics, sops
+from infraops.server.api import alerts, aws, health, hosts, incidents, ingest, metrics, sops, tools
 from infraops.server.db import get_engine, init_db
 from infraops.server.incidents.service import IncidentService
 from infraops.server.models import Alert, Incident
@@ -132,6 +132,8 @@ def create_app() -> FastAPI:
     app.include_router(alerts.router, prefix="/api/v1")
     app.include_router(incidents.router, prefix="/api/v1")
     app.include_router(sops.router, prefix="/api/v1")
+    app.include_router(tools.router, prefix="/api/v1")
+    app.include_router(aws.router, prefix="/api/v1")
 
     return app
 
